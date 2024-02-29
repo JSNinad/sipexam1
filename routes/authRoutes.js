@@ -11,7 +11,7 @@ router.get(
     })
   );
   router.get(
-    "/auth/google/callback",
+    "/auth/google/sipproj",
     (req, res, next) => {
       passport.authenticate("google", (err, user, info) => {
         if (err) {

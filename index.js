@@ -1,10 +1,29 @@
 const express = require('express')
 const mongoose = require('mongoose')
-const app  = express()
+
 require("dotenv").config();
 const passport = require("passport");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const session = require("express-session");
+// const User = require("./models/user");
+// const logoutRoutes = require("./logout/logout")
+const authRoutes = require("./routes/authRoutes");
+const foodRoutes = require("./routes/foodRoutes");
+// const orderRoutes = require("./routes/orderRoutes");
+
+const app = express();
+require("dotenv").config();
+
+app.use(express.json());
+
+mongoose.connect(process.env.MONGODB_URI);
+const db = mongoose.connection;
+
+
+db.once("open", () => {
+  console.log("Connected to MongoDB");
+});
+
 passport.use(
     new GoogleStrategy(
       {
@@ -15,27 +34,27 @@ passport.use(
       async (accessToken, refreshToken, profile, done) => {
         try {
           if (!profile || !profile.emails || !profile.emails[0]) {
-            // Check if necessary profile information is undefined
+            
             return done(null, false, {
               message: "Incomplete profile information",
             });
           }
   
-          // Check if user already exists in the database
+         
           let user = await User.findOne({ googleId: profile.id });
   
           if (user) {
-            console.log("Its saved now ");
+            console.log("Details saved");
             return done(null, user);
           } else {
-            // If the user doesn't exist, create a new user
+           
             user = new User({
               googleId: profile.id,
               displayName: profile.displayName || "Default Name",
               email: profile.emails[0].value || "Default Email",
-              // Add other properties as needed
+              
             });
-            console.log("Its saved in the pc ");
+            console.log("Details saved");
             await user.save();
             return done(null, user);
           }
@@ -46,18 +65,34 @@ passport.use(
     )
   );
 
+  passport.serializeUser((user, done) => {
+    done(null, user.id);
+  });
+  
+  passport.deserializeUser(async (id, done) => {
+    try {
+      const user = await User.findById(id);
+      done(null, user);
+    } catch (error) {
+      done(error);
+    }
+  });
+  
+  app.use(
+    session({
+      secret: "ninad",
+      resave: false,
+      saveUninitialized: true,
+    })
+  );
+  
+  app.use(passport.initialize());
+  app.use(passport.session());
 
-app.use(express.json());
+  app.use("/api", authRoutes);
+app.use("/api", foodRoutes);
+// app.use("/api", orderRoutes);
 
-mongoose.connect(process.env.MONGODB_URI);
-const db = mongoose.connection;
-
-// Check MongoDB connection
-db.once("open", () => {
-  console.log("Connected to MongoDB");
-});
-
-
-app.listen(4001,()=>{
-    console.log("Server listening successfully on port 4001")
+app.listen(3000,()=>{
+    console.log("Server listening successfully on port 3000")
 })
